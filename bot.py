@@ -1,23 +1,51 @@
 import os
 import discord
 import sqlite3
+import threading
+from flask import Flask
 from discord.ext import commands
+
+# ========================
+# CONFIG
+# ========================
 
 TOKEN = os.getenv("TOKEN")
 
-# STORAGE CHANNEL IDS (PUT YOUR CHANNEL IDS HERE)
+# PUT YOUR STORAGE CHANNEL IDS HERE
 RENDERS_CHANNEL_ID = 1480048829297328228
 THEMES_CHANNEL_ID = 1480048843310497924
 RBXM_CHANNEL_ID = 1480048869734744184
 
 DB_FILE = "database.db"
-MAX_FILE_SIZE = 8 * 1024 * 1024  # 8MB limit
+MAX_FILE_SIZE = 8 * 1024 * 1024  # 8MB
+
+
+# ========================
+# FLASK (FOR RENDER FREE)
+# ========================
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Bot is running!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+
+# ========================
+# DISCORD SETUP
+# ========================
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 
-# ---------------- DATABASE ---------------- #
+# ========================
+# DATABASE
+# ========================
 
 def init_db():
     with sqlite3.connect(DB_FILE) as conn:
@@ -34,7 +62,9 @@ def init_db():
         conn.commit()
 
 
-# ---------------- READY ---------------- #
+# ========================
+# READY EVENT
+# ========================
 
 @bot.event
 async def on_ready():
@@ -43,7 +73,9 @@ async def on_ready():
     print(f"Logged in as {bot.user}")
 
 
-# ---------------- SAVE HELPER ---------------- #
+# ========================
+# SAVE HELPER
+# ========================
 
 async def save_asset(interaction, name, attachment, channel_id, column):
     if attachment.size > MAX_FILE_SIZE:
@@ -75,7 +107,9 @@ async def save_asset(interaction, name, attachment, channel_id, column):
     await interaction.response.send_message(f"Saved under `{name}`.")
 
 
-# ---------------- COMMANDS ---------------- #
+# ========================
+# COMMANDS
+# ========================
 
 @bot.tree.command(name="addrender", description="Upload a render image")
 async def addrender(interaction: discord.Interaction, name: str, image: discord.Attachment):
@@ -129,4 +163,9 @@ async def getall(interaction: discord.Interaction, name: str):
     await interaction.response.send_message(files=files)
 
 
+# ========================
+# START BOTH SERVICES
+# ========================
+
+threading.Thread(target=run_web).start()
 bot.run(TOKEN)
